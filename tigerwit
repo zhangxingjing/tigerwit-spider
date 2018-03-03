@@ -1,0 +1,77 @@
+from selenium import webdriver
+from selenium.webdriver.common.keys import Keys
+import time
+from pymongo import MongoClient
+
+
+def login(driver):
+    try:
+        driver.get("https://www.tigerwit.com/web/product/trade")
+        time.sleep(3)
+        iframe = driver.find_element_by_xpath('/html/body/div/div[2]/iframe')
+        driver.switch_to_frame(iframe)
+        driver.find_element_by_xpath('/html/body/div[16]/div/div[3]/button[2]').click()
+        user = driver.find_element_by_xpath('//*[@id="login"]')
+        user.send_keys("19260880")
+        password = driver.find_element_by_xpath('//*[@id="password"]')
+        password.send_keys("zhang140706")
+        driver.find_element_by_xpath('/html/body/div[14]/div/div[3]/button[2]').click()
+        time.sleep(5)
+    except:
+        print('登录失败')
+        driver.quit()
+    #driver.quit()
+
+
+def spider(driver):
+    list_data = []
+    while True:
+        try:
+            sell = driver.find_element_by_xpath('/html/body/div[5]/div/div[3]/div[1]/div/table/tbody/tr[15]/td[2]/div/span').text
+            # print(sell)
+            buy = driver.find_element_by_css_selector('tr.notrade:nth-child(15) > td:nth-child(3) > div:nth-child(1) > span:nth-child(1)').text
+            # print(buy)
+            # time_ = driver.find_element_by_css_selector('.symbols-table > table:nth-child(2) > tbody:nth-child(2) > tr:nth-child(2)').get_attribute('innerHTML')
+            # print(time_)
+        except:
+            print("定位元素错误")
+            driver.quit()
+        list_data.append(sell)
+        list_data.append(buy)
+        time.sleep(1)
+        if len(list_data) == 20:
+            break
+    print(list_data)
+    if len(set(list_data)) == 2:
+        print('读取出错,重启')
+        driver.quit()
+        main()
+    return {
+        'sell': sell,
+        'buy': buy
+                      }
+
+
+def database(data):
+    try:
+        client = MongoClient('mongodb://localhost:27017/')
+        db = client.tiger
+        collection = db.buy_sell
+        collection.insert_one(data)
+        print("入库成功")
+        print(time.asctime())
+    except:
+        print("入库失败")
+
+
+def main():
+    driver = webdriver.Chrome()
+    login(driver)
+    while True:
+        data = spider(driver)
+        print(data)
+        # print(data['list_data'])
+        database(data)
+
+if __name__ == '__main__':
+    main()
